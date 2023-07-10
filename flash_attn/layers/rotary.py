@@ -169,7 +169,7 @@ class RotaryEmbedding(torch.nn.Module):
     Reference: https://github.com/sunyt32/torchscale/blob/main/torchscale/component/xpos_relative_position.py
     """
 
-    def __init__(self, dim: int, base=10000, interleaved=False, scale_base=None, device=None):
+    def __init__(self, dim: int, base=10000, interleaved=False, scale_base=None, device=None, ratio=1):
         """
             interleaved: if True, rotate pairs of even and odd dimensions (GPT-J style) instead
                 of 1st half and 2nd half (GPT-NeoX style).
@@ -190,6 +190,7 @@ class RotaryEmbedding(torch.nn.Module):
         self._sin_cached = None
         self._cos_k_cached = None
         self._sin_k_cached = None
+        self.ratio = ratio
 
     def _update_cos_sin_cache(self, x, seqlen_offset=0):
         """x: (batch, seqlen, nheads, headdim) or (batch, seqlen, 3, nheads, headdim)
@@ -200,7 +201,7 @@ class RotaryEmbedding(torch.nn.Module):
         if (seqlen > self._seq_len_cached or self._cos_cached.device != x.device
             or self._cos_cached.dtype != x.dtype):
             self._seq_len_cached = seqlen
-            t = torch.arange(seqlen, device=x.device, dtype=self.inv_freq.dtype)
+            t = torch.arange(seqlen, device=x.device, dtype=self.inv_freq.dtype) / self.ratio
             # Don't do einsum, it converts fp32 to fp16
             # freqs = torch.einsum("i,j->ij", t, self.inv_freq)
             freqs = torch.outer(t, self.inv_freq.to(device=t.device))
